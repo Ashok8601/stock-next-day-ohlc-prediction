@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Prediction Result</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>📊 {{ stock_name }} का प्रेडिक्शन रिजल्ट</h1>
+        
+        <h2>अगले दिन का अनुमानित डेटा:</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>फ़ीचर</th>
+                    <th>मान (₹)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for key, value in prediction.items() %}
+                <tr>
+                    <td>{{ key }}</td>
+                    <td>{{ value }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h3>दिए गए इनपुट:</h3>
+        <p>Prev Close: {{ input_data['prev_close'] }} | Volume: {{ input_data['volume'] }} | ...</p>
+        
+        <p><a href="/">◀️ वापस स्टॉक चुनें</a></p>
+    </div>
+</body>
+</html>
