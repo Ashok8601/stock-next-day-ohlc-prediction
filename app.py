@@ -1,20 +1,34 @@
 import os
 import pickle
 import numpy as np
-import pandas as pd
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 
+# =========================
+# Flask App Initialization
+# =========================
 app = Flask(__name__)
+CORS(app)  # Enable Cross-Origin requests
 
-# 1. BASE_DIR को Flask app.py की वर्तमान डायरेक्टरी के रूप में परिभाषित करें
-BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
-# 2. मॉडल डायरेक्टरी को BASE_DIR के सापेक्ष बनाएं
-MODEL_DIR = os.path.join(BASE_DIR, 'trained_models') 
+# =========================
+# Directories & Constants
+# =========================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_DIR = os.path.join(BASE_DIR, 'trained_models')
 
-# 🛠️ एक फंक्शन जो स्टॉक मॉडल को लोड करेगा
-def load_model(stock_name):
-    """दिए गए स्टॉक नाम के लिए .pkl मॉडल लोड करता है।"""
-    # model_path अब पूर्ण पथ (absolute path) का उपयोग करेगा
+# Ensure MODEL_DIR exists
+if not os.path.exists(MODEL_DIR):
+    os.makedirs(MODEL_DIR)
+    print(f"[INFO] Created model directory at {MODEL_DIR}")
+
+# =========================
+# Load Available Model Function
+# =========================
+def load_model(stock_name: str):
+    """
+    Load a pickled model for the given stock_name.
+    Returns the model object or None if failed.
+    """
     model_path = os.path.join(MODEL_DIR, f'{stock_name.lower()}.pkl')
     try:
         with open(model_path, 'rb') as f:
@@ -23,76 +37,64 @@ def load_model(stock_name):
     except FileNotFoundError:
         return None
     except Exception as e:
-        print(f"Error loading model {stock_name}: {e}")
+        print(f"[ERROR] Failed to load model {stock_name}: {e}")
         return None
 
-# 🌟 मुख्य रूट: स्टॉक सिलेक्शन पेज
-@app.route('/')
-def index():
-    model_files = []
-    
-    # 🐞 डीबगिंग कोड
-    print("--- MODEL LOADING DEBUG ---")
-    print(f"1. Flask running from: {BASE_DIR}")
-    print(f"2. Expected model directory path: {MODEL_DIR}")
-    
+# =========================
+# API: List Available Models
+# =========================
+@app.route('/models', methods=['GET'])
+def list_models():
+    """
+    fOR Returns a JSON list of all available stock models.
+    """
     try:
         if not os.path.exists(MODEL_DIR):
-            print("3. ERROR: The 'trained_models' directory does NOT exist at the expected path!")
-        else:
-            print("3. SUCCESS: The 'trained_models' directory exists.")
-            
-            # उपलब्ध मॉडलों की सूची प्राप्त करें
-            all_files = os.listdir(MODEL_DIR)
-            # केवल .pkl फ़ाइलें चुनें
-            model_files = [f.replace('.pkl', '') for f in all_files if f.endswith('.pkl')]
-            
-            # 4. टर्मिनल में प्रिंट करके देखें कि क्या सूची मिल रही है
-            if model_files:
-                print(f"4. Found models: {model_files}")
-            else:
-                print("4. WARNING: Directory exists, but no .pkl files were found inside.")
-            
-    except Exception as e:
-        print(f"5. FATAL ERROR: An error occurred while listing models: {e}")
-        model_files = []
-        
-    print("--- END DEBUG ---")
-    return render_template('stock.html', stock_list=model_files)
+            return jsonify({"models": [], "message": "Model directory not found"}), 404
 
-# 🚀 प्रेडिक्शन रूट: डेटा लेता है और प्रेडिक्शन दिखाता है
+        model_files = [f.replace('.pkl', '') for f in os.listdir(MODEL_DIR) if f.endswith('.pkl')]
+        return jsonify({"models": model_files}), 200
+
+    except Exception as e:
+        return jsonify({"error": f"Failed to list models: {str(e)}"}), 500
+
+# =========================
+# API: For Predict Stock Prices
+# =========================
 @app.route('/predict', methods=['POST'])
 def predict():
-    # 1. स्टॉक का नाम और इनपुट डेटा प्राप्त करें
-    stock_name = request.form.get('stock_name')
-    
-    # आवश्यक इनपुट फ़ील्ड: 'Prev Close','Open','High','Low','Last','Close','VWAP','Volume','Turnover'
+    """
+    Expects JSON with stock_name and input features.
+    Returns JSON with predicted OHLCVWAP values.
+    """
     try:
-        input_data = [
-            float(request.form['prev_close']),
-            float(request.form['open']),
-            float(request.form['high']),
-            float(request.form['low']),
-            float(request.form['last']),
-            float(request.form['close']),
-            float(request.form['vwap']),
-            float(request.form['volume']),
-            float(request.form['turnover'])
-        ]
-    except (ValueError, TypeError):
-        return render_template('prediction.html', stock_name=stock_name, error_message='Invalid input data. All fields must be valid numbers.'), 400
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
 
-    # 2. मॉडल लोड करें
-    model = load_model(stock_name)
-    if not model:
-        return render_template('prediction.html', stock_name=stock_name, error_message=f'Model for {stock_name.upper()} not found or failed to load.'), 404
+        stock_name = data.get('stock_name')
+        required_fields = ['prev_close', 'open', 'high', 'low', 'last', 'close', 'vwap', 'volume', 'turnover']
 
-    # 3. प्रेडिक्शन करें
-    try:
+        # INPUT VALIDATION
+        input_data = []
+        for field in required_fields:
+            value = data.get(field)
+            if value is None:
+                return jsonify({"error": f"Missing field: {field}"}), 400
+            try:
+                input_data.append(float(value))
+            except ValueError:
+                return jsonify({"error": f"Invalid value for field: {field}. Must be a number."}), 400
+
+        # MODEL LOADING
+        model = load_model(stock_name)
+        if not model:
+            return jsonify({"error": f"Model for '{stock_name}' not found"}), 404
+
+        # start prediction
         features = np.array([input_data])
-        prediction_output = model.predict(features)[0] 
-        
-        # 4. आउटपुट को HTML में दिखाने के लिए तैयार करें (6 फीचर्स)
+        prediction_output = model.predict(features)[0]
+
         results = {
             'Open': round(float(prediction_output[0]), 2),
             'High': round(float(prediction_output[1]), 2),
@@ -101,21 +103,15 @@ def predict():
             'Close': round(float(prediction_output[4]), 2),
             'VWAP': round(float(prediction_output[5]), 2)
         }
-        
-        # prediction.html को प्रेडिक्शन रिजल्ट के साथ रेंडर करें
-        return render_template('prediction.html', 
-                               stock_name=stock_name.upper(), 
-                               prediction=results,
-                               input_data=request.form)
+
+        return jsonify({"stock": stock_name.upper(), "prediction": results}), 200
 
     except Exception as e:
-        print(f"Prediction error: {e}")
-        return render_template('prediction.html', stock_name=stock_name, error_message=f'Prediction processing failed: {e}'), 500
-
-if __name__ == '__main__':
-    # सुनिश्चित करें कि मॉडल डायरेक्टरी मौजूद है
-    if not os.path.exists(MODEL_DIR):
-        print(f"Creating model directory: {MODEL_DIR}")
-        os.makedirs(MODEL_DIR)
         
-    app.run(debug=True)
+        return jsonify({"error": f"Prediction failed: {str(e)}"}), 500
+
+# =========================
+# Flask App Excution Code
+# =========================
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=False)
