@@ -41,42 +41,8 @@ The project is implemented as a **Flask web application**, with **separate HTML,
 ---
 
 ## Installation
-1. Clone the repository:
+
+### 1. Clone the repository
 ```bash
 git clone https://github.com/Ashok8601/stock-next-day-ohlc-prediction.git
 cd stock-next-day-ohlc-prediction
-
-## 2nd Create and activate vertual envoirenment
-python -m venv venv
-# Windows
-venv\Scripts\activate
-# Mac/Linux
-source venv/bin/activate
-
-## 3rd Install dependency
-pip install -r requirements.txt
-
-4th Run the flask app
-python app.py
-
-## 5th navigate url
-
-## 6th Project Structure
-stock-next-day-ohlc-prediction/
-│
-├─ app.py                  # Main Flask app
-├─ models/                 # Pickle models for each Nifty 50 stock
-├─ templates/
-│   ├─ stock.html          # Stock selection + input form
-│   └─ prediction.html     # Prediction results page
-├─ static/
-│   ├─ css/style.css       # Styles
-│   └─ js/script.js        # Dynamic frontend logic
-├─ venv/                   # Python virtual environment
-└─ README.md               # Project documentation
-
-
-
-
-
-
