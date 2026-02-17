@@ -1,34 +1,14 @@
 import os
 import pickle
 import numpy as np
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+import pandas as pd
+from flask import Flask, render_template, request, jsonify
 
-# =========================
-# Flask App Initialization
-# =========================
 app = Flask(__name__)
-CORS(app)  # Enable Cross-Origin requests
 
-# =========================
-# Directories & Constants
-# =========================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(BASE_DIR, 'trained_models')
-
-# Ensure MODEL_DIR exists
-if not os.path.exists(MODEL_DIR):
-    os.makedirs(MODEL_DIR)
-    print(f"[INFO] Created model directory at {MODEL_DIR}")
-
-# =========================
-# Load Available Model Function
-# =========================
-def load_model(stock_name: str):
-    """
-    Load a pickled model for the given stock_name.
-    Returns the model object or None if failed.
-    """
+def load_model(stock_name):
     model_path = os.path.join(MODEL_DIR, f'{stock_name.lower()}.pkl')
     try:
         with open(model_path, 'rb') as f:
@@ -37,64 +17,58 @@ def load_model(stock_name: str):
     except FileNotFoundError:
         return None
     except Exception as e:
-        print(f"[ERROR] Failed to load model {stock_name}: {e}")
+        print(f"Error loading model {stock_name}: {e}")
         return None
-
-# =========================
-# API: List Available Models
-# =========================
-@app.route('/models', methods=['GET'])
-def list_models():
-    """
-    fOR Returns a JSON list of all available stock models.
-    """
+@app.route('/')
+def index():
+    model_files = []
+    
+    
+    print("--- MODEL LOADING DEBUG ---")
+    print(f"1. Flask running from: {BASE_DIR}")
+    print(f"2. Expected model directory path: {MODEL_DIR}")
+    
     try:
         if not os.path.exists(MODEL_DIR):
-            return jsonify({"models": [], "message": "Model directory not found"}), 404
-
-        model_files = [f.replace('.pkl', '') for f in os.listdir(MODEL_DIR) if f.endswith('.pkl')]
-        return jsonify({"models": model_files}), 200
-
+            print("3. ERROR: The 'trained_models' directory does NOT exist at the expected path!")
+        else:
+            print("3. SUCCESS: The 'trained_models' directory exists.")
+            all_files = os.listdir(MODEL_DIR)
+            model_files = [f.replace('.pkl', '') for f in all_files if f.endswith('.pkl')]
+            if model_files:
+                print(f"4. Found models: {model_files}")
+            else:
+                print("4. WARNING: Directory exists, but no .pkl files were found inside.")
+            
     except Exception as e:
-        return jsonify({"error": f"Failed to list models: {str(e)}"}), 500
-
-# =========================
-# API: For Predict Stock Prices
-# =========================
+        print(f"5. FATAL ERROR: An error occurred while listing models: {e}")
+        model_files = []
+        
+    print("--- END DEBUG ---")
+    return render_template('stock.html', stock_list=model_files)
 @app.route('/predict', methods=['POST'])
 def predict():
-    """
-    Expects JSON with stock_name and input features.
-    Returns JSON with predicted OHLCVWAP values.
-    """
+    stock_name = request.form.get('stock_name')
     try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "No JSON data provided"}), 400
-
-        stock_name = data.get('stock_name')
-        required_fields = ['prev_close', 'open', 'high', 'low', 'last', 'close', 'vwap', 'volume', 'turnover']
-
-        # INPUT VALIDATION
-        input_data = []
-        for field in required_fields:
-            value = data.get(field)
-            if value is None:
-                return jsonify({"error": f"Missing field: {field}"}), 400
-            try:
-                input_data.append(float(value))
-            except ValueError:
-                return jsonify({"error": f"Invalid value for field: {field}. Must be a number."}), 400
-
-        # MODEL LOADING
-        model = load_model(stock_name)
-        if not model:
-            return jsonify({"error": f"Model for '{stock_name}' not found"}), 404
-
-        # start prediction
+        input_data = [
+            float(request.form['prev_close']),
+            float(request.form['open']),
+            float(request.form['high']),
+            float(request.form['low']),
+            float(request.form['last']),
+            float(request.form['close']),
+            float(request.form['vwap']),
+            float(request.form['volume']),
+            float(request.form['turnover'])
+        ]
+    except (ValueError, TypeError):
+        return render_template('prediction.html', stock_name=stock_name, error_message='Invalid input data. All fields must be valid numbers.'), 400
+    model = load_model(stock_name)
+    if not model:
+        return render_template('prediction.html', stock_name=stock_name, error_message=f'Model for {stock_name.upper()} not found or failed to load.'), 404
+    try:
         features = np.array([input_data])
-        prediction_output = model.predict(features)[0]
-
+        prediction_output = model.predict(features)[0] 
         results = {
             'Open': round(float(prediction_output[0]), 2),
             'High': round(float(prediction_output[1]), 2),
@@ -103,15 +77,20 @@ def predict():
             'Close': round(float(prediction_output[4]), 2),
             'VWAP': round(float(prediction_output[5]), 2)
         }
-
-        return jsonify({"stock": stock_name.upper(), "prediction": results}), 200
+        return render_template('prediction.html', 
+                               stock_name=stock_name.upper(), 
+                               prediction=results,
+                               input_data=request.form)
 
     except Exception as e:
-        
-        return jsonify({"error": f"Prediction failed: {str(e)}"}), 500
+        print(f"Prediction error: {e}")
+        return render_template('prediction.html', stock_name=stock_name, error_message=f'Prediction processing failed: {e}'), 500
 
-# =========================
-# Flask App Excution Code
-# =========================
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    if not os.path.exists(MODEL_DIR):
+        print(f"Creating model directory: {MODEL_DIR}")
+        os.makedirs(MODEL_DIR)  # <-- yahi missing tha, "is" nahi
+    else:
+        print(f"Model directory already exists: {MODEL_DIR}")
+    app.run(debug=True)
+
