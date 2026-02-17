@@ -7,14 +7,14 @@
 </head>
 <body>
     <div class="container">
-        <h1>📊 {{ stock_name }} का प्रेडिक्शन रिजल्ट</h1>
+        <h1>{{ stock_name }} Prediction Result</h1>
         
-        <h2>अगले दिन का अनुमानित डेटा:</h2>
+        <h2>Next Day Estimated Data</h2>
         <table>
             <thead>
                 <tr>
-                    <th>फ़ीचर</th>
-                    <th>मान (₹)</th>
+                    <th>Feature</th>
+                    <th>Value (₹)</th>
                 </tr>
             </thead>
             <tbody>
@@ -27,10 +27,10 @@
             </tbody>
         </table>
 
-        <h3>दिए गए इनपुट:</h3>
+        <h3>Given Input:</h3>
         <p>Prev Close: {{ input_data['prev_close'] }} | Volume: {{ input_data['volume'] }} | ...</p>
         
-        <p><a href="/">◀️ वापस स्टॉक चुनें</a></p>
+        <p><a href="/">Back to select stock</a></p>
     </div>
 </body>
 </html>
