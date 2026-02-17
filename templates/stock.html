@@ -8,32 +8,26 @@
 </head>
 <body>
     <div class="container">
-        <h1>🔍 स्टॉक प्रेडिक्शन टूल</h1>
-        <p>प्रेडिक्शन के लिए एक स्टॉक चुनें:</p>
+        <h1>🔍 Stock Prediction Tool</h1>
+        <p>Select a stock to predict:</p>
 
-        <!-- स्टॉक सिलेक्शन फॉर्म -->
         <form id="stockForm">
-            <label for="stock_select">स्टॉक चुनें:</label>
+            <label for="stock_select">Choose Stock:</label>
             <select id="stock_select" name="stock_name" required>
-                <!-- यह वह जगह है जहाँ 50 स्टॉक नाम आने चाहिए -->
-                <option value="" disabled selected>स्टॉक चुनें... ({{ stock_list | length }} मॉडल उपलब्ध)</option>
+                <option value="" disabled selected>Select stock... ({{ stock_list | length }} models available)</option>
                 {% for stock in stock_list %}
                 <option value="{{ stock }}">{{ stock.upper() }}</option>
                 {% endfor %}
             </select>
-            <button type="submit">डेटा एंटर करें</button>
+            <button type="submit">Enter Data</button>
         </form>
 
-        <!-- इनपुट फ़ॉर्म, जो स्टॉक चुने जाने पर JS द्वारा दिखाया जाएगा -->
         <div id="inputFormContainer" style="display: none;">
-            <!-- JS द्वारा भरा जाएगा -->
-            <h2>📈 के लिए इनपुट</h2> 
+            <h2>📈 Inputs for Prediction</h2>
             
             <form action="{{ url_for('predict') }}" method="POST" id="predictionForm">
-                <!-- Flask को स्टॉक का नाम पास करने के लिए हिडन फ़ील्ड -->
                 <input type="hidden" name="stock_name" id="hidden_stock_name">
 
-                <!-- 9 आवश्यक इनपुट फ़ील्ड (सभी number, step="any" से float स्वीकार होगा) -->
                 <label for="prev_close">Prev Close:</label>
                 <input type="number" step="any" name="prev_close" required><br>
 
@@ -61,7 +55,7 @@
                 <label for="turnover">Turnover:</label>
                 <input type="number" step="any" name="turnover" required><br>
 
-                <button type="submit">प्रेडिक्ट करें</button>
+                <button type="submit">Predict</button>
             </form>
         </div>
     </div>
