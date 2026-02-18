@@ -1,13 +1,59 @@
 import os
 import pickle
+import sqlite3
 import numpy as np
 import pandas as pd
 from flask import Flask, render_template, request, jsonify
-
+from werkzeug.security import generate_password_hash,check_password_hash
 app = Flask(__name__)
-
+from db import get_db
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(BASE_DIR, 'trained_models')
+@app.route("/signup",methods=["GET","POST"])
+def signup():
+    data=request.get_json()
+    if not data:
+        return jsonify({"error":"invalid data "}),400
+    username=data.get("username")
+    name=data.get("name")
+    email=data.get("email")
+    password=data.get("password")
+    if not email or  not username or not password or not name:
+        return jsonify({"error":"all fild are recqiured"})
+    elif len(password)<8:
+        return jsonify({"error":"password should be 8 charecter"})
+    hash_pass=generate_password_hash(password)
+    try:
+        conn=get_db()
+        conn.execute("INSERT INTO user(name,username,email,password)VALUES(?,?,?,?)",(name,username,email,hash_pass))
+        conn.commit()
+        conn.close()
+        return jsonify({"message":"user created successfully "}),200
+    except sqlite3.IntegrityError:
+        return jsonify({"error":"email already exists"}),209
+    
+@app.route("/login",methods=["GET","POST"])
+def login():
+    data=request.get_json()
+    if not data:
+        return jsonify({"error":"invalid json data"}),400
+    email=data.get("email")
+    password=data.get("password")
+    if not email or not password:
+        return jsonify({"error":"all field are recquired "}),400 
+    conn =get_db()
+    user=conn.execute("SELECT * FROM user WHERE email=?",(email,) ).fetchone()
+    conn.close()
+    if not user:
+        return jsonify({"error":"email or password incorect "}),400
+    if not check_password_hash(user["password"],password):
+        return jsonify({"error":"password incorect"}),400
+    return jsonify({"message":"login successfull","user":{
+        "id":user["id"],
+        "name":user["name"]
+        }}),200
+    
+    
 def load_model(stock_name):
     model_path = os.path.join(MODEL_DIR, f'{stock_name.lower()}.pkl')
     try:
