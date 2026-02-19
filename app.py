@@ -172,6 +172,42 @@ def predict():
     except Exception as e:
         return jsonify({"status": "error", "message": f"Prediction failed: {str(e)}"}), 500
 
+@app.route('/profile',methods=["GET","POST"])
+def user_profile():
+    id=session.get("id")
+    if not id:
+        return jsonify({"user not logged in "}),401
+    conn=get_db()
+    user=conn.execute("SELECT * FROM user WHERE id=?",(id,)).fetchone()
+    conn.close()
+    if not user:
+        return jsonify({"error":"user not logged in "}),401
+    return jsonify({"username":user["username"],"name":user["name"],"email":user["email"]}),200
+
+@app.route('/reset_password',methods=["GET","POST"])
+def reset_password():
+    data=request.get_json()
+    old_password=data.get("old_password")
+    new_password=data.get("new_password")
+    username=data.get("username")
+    conn=get_db()
+    id=session.get("id")
+    if not id:
+        return jsonify({"error":"user not logged in"}),401
+    user=conn.execute("SELECT * FROM user WHERE id=?",(id,)).fetchone()
+    conn.close()
+    if not old_password or not new_password or not username:
+        return jsonify({"error":"all field are required"}),400
+    if not user["username"] != username or not check_password_hash(user["password"],old_password):
+        return jsonify({"error":"username and old password not matched with record"})
+    hashpassword=generate_password_hash(new_password)
+    conn=get_db()
+    conn.execute("UPDATE user SET password =? WHERE username =?",(hashpassword,username))
+    conn.commit()
+    conn.close()
+    return jsonify({"message":"password updated successfully"})
+    
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port, debug=True)
