@@ -85,14 +85,15 @@ def login():
     }), 200
 
 def load_model(stock_name):
-    model_path = os.path.join(MODEL_DIR, f"{stock_name.lower()}.pkl")
     try:
-        with open(model_path, "rb") as f:
-            model = pickle.load(f)
-        return model
-    except:
+        for file in os.listdir(MODEL_DIR):
+            if file.lower() == f"{stock_name.lower()}.pkl":
+                with open(os.path.join(MODEL_DIR, file), "rb") as f:
+                    return pickle.load(f)
         return None
-
+    except Exception as e:
+        print("Model loading error:", e)
+        return None
 @app.route("/select/stock", methods=["GET"])
 def get_stocks():
     if not os.path.exists(MODEL_DIR):
