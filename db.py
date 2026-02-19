@@ -18,4 +18,4 @@ def create_table():
     conn.commit()
     conn.close()
     print("user tabel created successfully")
-create_table()    s
+create_table()
