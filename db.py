@@ -1,4 +1,7 @@
 import sqlite3
+import os
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+database = os.path.join(BASE_DIR, "user.db") 
 database="user.db"
 def get_db():
     conn=sqlite3.connect(database)
@@ -15,4 +18,4 @@ def create_table():
     conn.commit()
     conn.close()
     print("user tabel created successfully")
-create_table()    
+create_table()    s
