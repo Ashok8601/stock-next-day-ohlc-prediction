@@ -9,6 +9,12 @@ app = Flask(__name__)
 from db import get_db
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(BASE_DIR, 'trained_models')
+if not os.path.exists(MODEL_DIR):
+    os.makedirs(MODEL_DIR)
+    
+
+# ======= Routes =======
+    
 @app.route("/signup",methods=["GET","POST"])
 def signup():
     data=request.get_json()
@@ -54,13 +60,6 @@ def login():
         }}),200
     
     
-from flask import Flask, render_template, request
-
-app = Flask(__name__)
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_DIR = os.path.join(BASE_DIR, 'trained_models')
-if not os.path.exists(MODEL_DIR):
-    os.makedirs(MODEL_DIR)
 def load_model(stock_name):
     model_path = os.path.join(MODEL_DIR, f"{stock_name.lower()}.pkl")
     try:
@@ -74,55 +73,67 @@ def load_model(stock_name):
         print(f"Error loading model {stock_name}: {e}")
         return None
 
-# ======= Routes =======
-@app.route('/')
-def index():
-    model_files = []
-    if os.path.exists(MODEL_DIR):
-        all_files = os.listdir(MODEL_DIR)
-        model_files = [f.replace('.pkl', '') for f in all_files if f.endswith('.pkl')]
-    return render_template('stock.html', stock_list=model_files)
+@app.route('/select/stock', methods=["GET"])
+def get_stocks():
+    if not os.path.exists(MODEL_DIR):
+        return jsonify({
+            "status": "error",
+            "message": "Model directory not found"
+        }), 404  
+
+    all_files = os.listdir(MODEL_DIR)
+    model_files = [
+        f.replace('.pkl', '')
+        for f in all_files
+        if f.endswith('.pkl')
+    ]
+
+    return jsonify({
+        "status": "success",
+        "count": len(model_files),
+        "stocks": model_files
+    }), 200
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    stock_name = request.form.get('stock_name', '').upper()
-    input_dict = request.form.to_dict()  # Convert MultiDict to normal dict
-    
-    # Validate and convert input fields
+    data=request.get_json()
+    if not data:
+    	return jsonify({"error":"invalid json"}),400
+    stock_name = data.get("stock_name")
+    if not stock_name:
+    	return jsonify({"error":"Select stock name"}),400
+    	
+    stock_name=stock_name.upper()
+   
+   
     try:
         input_data = [
-            float(input_dict.get('prev_close', 0)),
-            float(input_dict.get('open', 0)),
-            float(input_dict.get('high', 0)),
-            float(input_dict.get('low', 0)),
-            float(input_dict.get('last', 0)),
-            float(input_dict.get('close', 0)),
-            float(input_dict.get('vwap', 0)),
-            float(input_dict.get('volume', 0)),
-            float(input_dict.get('turnover', 0))
+            float(data.get('prev_close', 0)),
+            float(data.get('open', 0)),
+            float(data.get('high', 0)),
+            float(data.get('low', 0)),
+            float(data.get('last', 0)),
+            float(data.get('close', 0)),
+            float(data.get('vwap', 0)),
+            float(data.get('volume', 0)),
+            float(data.get('turnover', 0))
         ]
     except (ValueError, TypeError):
-        return render_template('prediction.html', 
-                               stock_name=stock_name,
-                               error_message="Invalid input: all fields must be numbers.",
-                               input_data=input_dict), 400
-
+        return jsonify({
+            "status": "error",
+            "message": "All input fields must be numbers"
+        }), 400
+                               
     model = load_model(stock_name)
-    if not model:
-        return render_template('prediction.html', 
-                               stock_name=stock_name,
-                               error_message=f"Model for {stock_name} not found.",
-                               input_data=input_dict), 404
-
+    if model is None:
+        return jsonify({"status":"error","message":f"model  for {stock_name} not found"}),404                                                        
+                              
     try:
         features = np.array([input_data])
         prediction_output = model.predict(features)[0]
         if len(prediction_output) < 6:
-            return render_template('prediction.html', 
-                                   stock_name=stock_name,
-                                   error_message="Model output shape mismatch.",
-                                   input_data=input_dict), 500
-        
+            return jsonify({"status":"error","message":"model output size mismatch"}),505
+                                          
         results = {
             'Open': round(float(prediction_output[0]), 2),
             'High': round(float(prediction_output[1]), 2),
@@ -131,18 +142,9 @@ def predict():
             'Close': round(float(prediction_output[4]), 2),
             'VWAP': round(float(prediction_output[5]), 2)
         }
-        return render_template('prediction.html',
-                               stock_name=stock_name,
-                               prediction=results,
-                               input_data=input_dict)
-
+        return jsonify({"status":"success","stock name":stock_name,"prediction":results}),200
     except Exception as e:
-        print(f"Prediction error: {e}")
-        return render_template('prediction.html', 
-                               stock_name=stock_name,
-                               error_message=f"Prediction failed: {e}",
-                               input_data=input_dict), 500
-
+        return jsonify({"status":"error","message":f"prediction fail for {stock_name} :{str(e)}"}),500
 # ======= Run App =======
 if __name__ == '__main__':
     app.run(debug=True)
