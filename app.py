@@ -6,7 +6,7 @@ import pandas as pd
 from flask import Flask, render_template, request, jsonify
 from werkzeug.security import generate_password_hash,check_password_hash
 app = Flask(__name__)
-from flask_cors imoort CORS
+from flask_cors import CORS
 CORS(app)
 from db import get_db
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
