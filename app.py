@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, jsonify
 from werkzeug.security import generate_password_hash,check_password_hash
 app = Flask(__name__)
 from flask_cors imoort CORS
-app(CORS)
+CORS(app)
 from db import get_db
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(BASE_DIR, 'trained_models')
