@@ -182,6 +182,25 @@ def predict():
     except:
         return jsonify({"status": "error", "message": "Prediction failed"}), 500
 
+@app.route("/forgot_password", methods=["POST"])
+def forgot_password():
+    data = request.get_json()
+    email = data.get("email")
+    new_password = data.get("new_password")
+    if not data or not email or not new_password:
+        return jsonify({"status": "error", "message": "invalid data email or password are not matched with our record"}), 400
+    conn = sqlite3.connect('database.db')
+    conn.row_factory=sqlite3.Row
+    cur = conn.cursor()
+    user = cur.execute("SELECT * FROM user WHERE email=?", (email,)).fetchone()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    else:
+        hashpassword = generate_password_hash(new_password)
+        cur.execute("UPDATE user SET password=? WHERE email=?", (hashpassword, email))
+        conn.commit()
+        conn.close()
+        return jsonify({"message": "Password updated successfully"}), 200
 
 if __name__ == "__main__":
     app.run(debug=True)
