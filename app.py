@@ -1,8 +1,8 @@
 import os
-#import pickle
+import pickle
 import sqlite3
 
-#import numpy as np
+import numpy as np
 from flask import Flask, request, jsonify, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
